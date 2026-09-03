@@ -1,0 +1,345 @@
+{
+  "name": "Daily Market Brief (Yahoo_Finance and CNBC)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "3344c507-4a2c-487b-abdf-8da401801c59",
+      "name": "Daily 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -656,
+        -432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [\n  { symbol: '^GSPC', name: 'S&P 500' },\n  { symbol: '^IXIC', name: 'Nasdaq Composite' },\n  { symbol: '^DJI', name: 'Dow Jones Industrial Average' },\n  { symbol: '^RUT', name: 'Russell 2000' },\n  { symbol: '^FTSE', name: 'FTSE 100' },\n  { symbol: '^N225', name: 'Nikkei 225' },\n  { symbol: '^HSI', name: 'Hang Seng' },\n  { symbol: '^STI', name: 'Straits Times Index (STI)' },\n];\nreturn items.map(i => ({ json: i }));"
+      },
+      "id": "fbf93ce2-9223-432a-a704-a2701e95cb9d",
+      "name": "Build Symbol List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://query1.finance.yahoo.com/v8/finance/chart/{{ encodeURIComponent($json.symbol) }}?range=5d&interval=1d",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c373c49d-fd34-497e-aa84-8c30bc686f2a",
+      "name": "Fetch Yahoo Chart",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -208,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = ['^GSPC','^IXIC','^DJI','^RUT','^FTSE','^N225','^HSI','^STI'];\nconst nameMap = {\n  '^GSPC': 'S&P 500',\n  '^IXIC': 'Nasdaq Composite',\n  '^DJI': 'Dow Jones Industrial Average',\n  '^RUT': 'Russell 2000',\n  '^FTSE': 'FTSE 100',\n  '^N225': 'Nikkei 225',\n  '^HSI': 'Hang Seng',\n  '^STI': 'Straits Times Index (STI)'\n};\nconst bySymbol = {};\nfor (const it of $input.all()) {\n  const res = it.json && it.json.chart && it.json.chart.result && it.json.chart.result[0];\n  if (!res || !res.meta) continue;\n  const meta = res.meta;\n  const sym = meta.symbol;\n  let latest = typeof meta.regularMarketPrice === 'number' ? meta.regularMarketPrice : null;\n  const chg = typeof meta.regularMarketChangePercent === 'number' ? meta.regularMarketChangePercent : null;\n  try {\n    const closes = (res.indicators.quote[0].close || []).filter(v => typeof v === 'number');\n    if (latest === null && closes.length) latest = closes[closes.length - 1];\n  } catch (e) {}\n  bySymbol[sym] = { latest, chg, currency: meta.currency || '' };\n}\nconst lines = [];\nconst indices = [];\nfor (const sym of order) {\n  const name = nameMap[sym];\n  const d = bySymbol[sym];\n  if (!d || d.latest === null) { lines.push('- ' + name + ': data unavailable'); continue; }\n  const chg = typeof d.chg === 'number' ? d.chg : null;\n  const arrow = chg === null ? '' : (chg >= 0 ? '▲' : '▼');\n  const closeStr = d.latest.toLocaleString('en-US', { maximumFractionDigits: 2 });\n  const chgStr = chg === null ? 'n/a' : (arrow + ' ' + Math.abs(chg).toFixed(2) + '%');\n  lines.push('- ' + name + ': ' + closeStr + ' (' + chgStr + ')');\n  indices.push({ symbol: sym, name, latest: d.latest, changePct: chg });\n}\nreturn [{ json: { indicesText: lines.join('\\n'), indices } }];"
+      },
+      "id": "851f9e02-6181-41b6-9d1c-d0d9cb92eafa",
+      "name": "Format Indices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258",
+        "options": {}
+      },
+      "id": "36f96c61-0e95-48a2-bec0-c6391f038501",
+      "name": "Fetch Headlines",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().slice(0, 6);\nconst lines = items\n  .map(it => '- ' + String((it.json && it.json.title) || '').trim())\n  .filter(l => l.length > 2);\nconst headlinesText = lines.length ? lines.join('\\n') : '- No headlines available';\nreturn [{ json: { headlinesText } }];"
+      },
+      "id": "7f91c61b-5651-4e1c-a537-40baecef7e79",
+      "name": "Format Headlines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Today is {{ $now.setZone(\"Asia/Singapore\").toFormat(\"cccc, d LLLL yyyy\") }} (Asia/Singapore).\n\nYou are writing a daily market brief. Do NOT invent, change, reorder or recompute any numbers or headlines. Use the provided data verbatim.\n\nAUTHORITATIVE INDEX DATA (from Yahoo Finance):\n{{ $('Format Indices').item.json.indicesText }}\n\n\nTOP MARKET HEADLINES (from CNBC):\n{{ $(\"Format Headlines\").item.json.headlinesText }}\n\nProduce a Telegram-friendly Markdown message (single * for bold, - for bullets) structured EXACTLY like this:\n\n*Daily Market Brief — <date>*\n\n<optional one-line neutral overview, max 2 short sentences>\n\n*Global Indices* (exchange name and daily % change):\n<the index lines above, unchanged>\n\n*Top Headlines*\n<the headline lines above, unchanged>\n\nRules: Keep the whole message under 3500 characters. Output only the message body, no preamble. Do not use HTML tags.",
+        "options": {
+          "systemMessage": "You are a precise financial market brief writer. Never invent or hallucinate numbers or headlines. Use the provided Yahoo Finance data verbatim: for each index show its name and its regularMarketChangePercent (the daily % change) exactly as provided, and only add a brief neutral overview line."
+        }
+      },
+      "id": "35dc45a5-e05e-4338-8c1d-da07f87f1fcc",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        688,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "cc05559d-7cbd-4d3e-bf6f-0d175e64f945",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        -112
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SdinceqJwx8P5ozh",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5553037479",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b9552d54-cfe0-4f9f-bb5f-7ba5c7375158",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        -432
+      ],
+      "webhookId": "73ebb9ba-1872-49d6-a75f-4070d7635eaf",
+      "credentials": {
+        "telegramApi": {
+          "id": "uTuN6rNBCmGRcJmz",
+          "name": "Telegram n8nCETzero"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const md = String($json.output || \"\");\nfunction esc(s) {\n  return s.replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\");\n}\nconst lines = md.split(/\\r?\\n/);\nlet html = \"\";\nlet inList = false;\nfor (const raw of lines) {\n  let line = raw.trim();\n  const isBullet = line.startsWith(\"- \");\n  if (isBullet) {\n    if (!inList) { html += \"<ul>\"; inList = true; }\n    line = line.slice(2);\n  } else if (inList) {\n    html += \"</ul>\";\n    inList = false;\n  }\n  let content = esc(line);\n  content = content.replace(/\\*([^*]+)\\*/g, \"<strong>$1</strong>\");\n  if (isBullet) {\n    html += \"<li>\" + content + \"</li>\";\n  } else if (line === \"\") {\n    html += \"<br>\";\n  } else {\n    html += \"<p style=\\\"margin:0 0 10px 0;\\\">\" + content + \"</p>\";\n  }\n}\nif (inList) html += \"</ul>\";\nconst wrapped = \"<div style=\\\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222;\\\">\" + html + \"</div>\";\nreturn [{ json: { html: wrapped, output: md } }];"
+      },
+      "id": "1ab5a115-e76b-4feb-959c-2f7d6cfcbff0",
+      "name": "Format Email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "nchinling@gmail.com, ng_chin_ling@rp.edu.sg",
+        "subject": "Daily Market news",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "fbecec59-cf2a-4f77-9247-3ea492e98c91",
+      "name": "Send a message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1264,
+        -240
+      ],
+      "webhookId": "ec69dd7e-255a-4fb0-bb97-da625712bafb",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VEMZvH6RM5HV031d",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "585a7815-9c50-416f-bca0-816ad71e3684",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -240
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily 08:00": {
+      "main": [
+        [
+          {
+            "node": "Build Symbol List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Symbol List": {
+      "main": [
+        [
+          {
+            "node": "Fetch Yahoo Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Yahoo Chart": {
+      "main": [
+        [
+          {
+            "node": "Format Indices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Indices": {
+      "main": [
+        [
+          {
+            "node": "Fetch Headlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Headlines": {
+      "main": [
+        [
+          {
+            "node": "Format Headlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Headlines": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Email HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email HTML": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Build Symbol List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1525a89e-3235-4f31-ad25-b8ff262f1eb0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a9ac2dc5d957a71a359a7a595e6c829068ab4df520b798380fc964aa76a8d686"
+  },
+  "nodeGroups": [],
+  "id": "970SIbTS3MI0ieVT",
+  "tags": []
+}
