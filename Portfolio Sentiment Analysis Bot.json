@@ -1,0 +1,700 @@
+{
+  "name": "Sentiment Analysis Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a stock sentiment analyzer. Your task is to evaluate news content for their potential impact on a specific stock.\n\nInput Format:\nUser input contains a stock symbol, news title, and article content.\n\nAnalysis Guidelines:\nEvaluate only the specified stock. Generate a sentiment score between -1 and 1, where -1 is strongly negative, 0 is neutral, and 1 is strongly positive. Consider whether information is new or already priced in. Explain the rationale.\n\nOutput Format:\nReturn valid JSON only, with exactly these fields: \"symbol\", \"sentiment_score\", and \"rationale\".\n\nReal stock symbol:\n{{ $('loop_over_tickers').item.json.ticker }}\n\nNews articles:\n{{ $('join_articles_into_1').item.json.fullString }}",
+        "options": {}
+      },
+      "id": "b682a5fa-62fc-4445-a9f9-b6c302cd0287",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        1120,
+        1136
+      ],
+      "executeOnce": false,
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://eodhd.com/api/news",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "s",
+              "value": "={{ $('loop_over_tickers').item.json.ticker }}"
+            },
+            {
+              "name": "offset",
+              "value": "0"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            },
+            {
+              "name": "fmt",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f2172a9-6d3f-4683-bdd8-b08a239091d9",
+      "name": "Get articles from EODHD",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        448,
+        1040
+      ],
+      "executeOnce": false,
+      "typeVersion": 4.2,
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "NQeykgUvFM21JZzb",
+          "name": "EODHD News Query Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "395db113-94e8-426d-afc2-24f3b30d7556",
+      "name": "loop_over_tickers",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        224,
+        1280
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1mu8WAR3RTTkgHzP6dgQLTkUkD1Fbsu297oTjy7w8d38",
+          "mode": "list",
+          "cachedResultName": "Stock Sentiment",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mu8WAR3RTTkgHzP6dgQLTkUkD1Fbsu297oTjy7w8d38/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 756959440,
+          "mode": "list",
+          "cachedResultName": "stocks",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mu8WAR3RTTkgHzP6dgQLTkUkD1Fbsu297oTjy7w8d38/edit#gid=756959440"
+        },
+        "options": {}
+      },
+      "id": "69318688-6e46-4a3e-86ad-f39ce190a359",
+      "name": "Read_tickers_from_Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        0,
+        1280
+      ],
+      "typeVersion": 4.6,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uHRrvWpcoGAO7PNN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "770d6272-1cde-44d7-9e15-fe5d7c28ba36",
+              "operator": {
+                "name": "filter.operator.equals",
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $ifEmpty($input.all().toJsonString(),'True') }}",
+              "rightValue": "True"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6db0d282-2952-4e24-9850-8fedc173872c",
+      "name": "If_ticker_not_valid",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        672,
+        1040
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1tQDBVDqn5v08GOsjupjV8o3Jzqd4-fKoSoGhWLEOTww",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQDBVDqn5v08GOsjupjV8o3Jzqd4-fKoSoGhWLEOTww/edit?usp=drivesdk",
+          "cachedResultName": "Stock Sentiment"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "sentiments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tQDBVDqn5v08GOsjupjV8o3Jzqd4-fKoSoGhWLEOTww/edit#gid=0"
+        },
+        "columns": {
+          "value": {
+            "date": "={{$today}}\n",
+            "stock": "={{ $('loop_over_tickers').item.json.ticker }}",
+            "sentimentScore": "Invaild Ticker"
+          },
+          "schema": [
+            {
+              "id": "date",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "date",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stock",
+              "type": "string",
+              "display": true,
+              "removed": false,
+              "required": false,
+              "displayName": "stock",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentimentScore",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "sentimentScore",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rational",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "rational",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5fe229d0-414f-415f-ad58-e252e7201020",
+      "name": "Write_in_google_sheets_invalid_ticker",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        896,
+        944
+      ],
+      "typeVersion": 4.6,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uHRrvWpcoGAO7PNN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- n8n Code Node (JavaScript) ---\n// This script takes an array of objects and converts it into a single JSON string.\n\n// 1. Extract the JSON data from all incoming n8n items.\nconst allArticlesArray = items.map(item => item.json);\n\n// 2. Convert the entire array into a single JSON string.\n// The 'null, 2' arguments format the string with indentation for readability.\nconst combinedString = JSON.stringify(allArticlesArray, null, 2);\n\n// 3. Return the result as a single item.\n// The output will have one property, 'fullString', containing the combined text.\nreturn [\n  {\n    json: {\n      fullString: combinedString\n    }\n  }\n];"
+      },
+      "id": "7ce78950-87ed-47f6-82ce-58d8276b6070",
+      "name": "join_articles_into_1",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        896,
+        1136
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawOutput = $input.first().json.output;\nconst outputText = typeof rawOutput === 'string'\n  ? rawOutput.trim()\n  : JSON.stringify(rawOutput);\nconst unfencedOutput = outputText\n  .replace(/^```(?:json)?\\s*/i, '')\n  .replace(/\\s*```$/i, '')\n  .trim();\nconst jsonStartIndex = unfencedOutput.indexOf('{');\nconst jsonEndIndex = unfencedOutput.lastIndexOf('}');\n\nif (jsonStartIndex === -1 || jsonEndIndex <= jsonStartIndex) {\n  throw new Error('The AI response did not contain a usable sentiment JSON object.');\n}\n\nconst parsedJson = JSON.parse(unfencedOutput.slice(jsonStartIndex, jsonEndIndex + 1));\n\nif (!parsedJson.symbol || parsedJson.sentiment_score === undefined || !parsedJson.rationale) {\n  throw new Error('The AI response JSON is missing symbol, sentiment_score, or rationale.');\n}\n\nconst staticData = $getWorkflowStaticData('global');\nconst executionId = $execution.id;\n\nstaticData.sentimentDigests ??= {};\nstaticData.sentimentDigests[executionId] ??= [];\nstaticData.sentimentDigests[executionId].push(parsedJson);\n\nreturn [{ json: parsedJson }];"
+      },
+      "id": "de2b5b10-5384-43ae-9334-f1684df22ae0",
+      "name": "format_output_as_json",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1472,
+        1136
+      ],
+      "executeOnce": false,
+      "retryOnFail": false,
+      "typeVersion": 2,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1mu8WAR3RTTkgHzP6dgQLTkUkD1Fbsu297oTjy7w8d38",
+          "mode": "list",
+          "cachedResultName": "Stock Sentiment",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mu8WAR3RTTkgHzP6dgQLTkUkD1Fbsu297oTjy7w8d38/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1120576232,
+          "mode": "list",
+          "cachedResultName": "sentiments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mu8WAR3RTTkgHzP6dgQLTkUkD1Fbsu297oTjy7w8d38/edit#gid=1120576232"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{$today}}",
+            "stock": "={{ $('loop_over_tickers').item.json.ticker.replace('.US', '') }}",
+            "sentimentScore": "={{ $json.sentiment_score }}",
+            "rational": "={{ $json.rationale }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "stock",
+              "displayName": "stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sentimentScore",
+              "displayName": "sentimentScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rational",
+              "displayName": "rational",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "75cdf8de-df9f-436b-8a68-d75480ddbc8a",
+      "name": "write_sentiment_to_sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1696,
+        1312
+      ],
+      "typeVersion": 4.6,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uHRrvWpcoGAO7PNN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 16
+            }
+          ]
+        }
+      },
+      "id": "28ae5148-546d-46ad-a6c5-6692bd387f84",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -224,
+        1280
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "content": "# Workflow Overview \n**This workflow automates the process of analyzing the sentiment of stock market news.**\n\n- retrieves a list of stock tickers from a Google Sheet \n- fetches recent news articles for each ticker\n- uses a large language model to perform sentiment analysis on the articles\n- records the sentiment scores and rationale back into a Google Sheet.",
+        "height": 296,
+        "width": 512
+      },
+      "id": "dbca28a4-a5ff-43d2-a59b-2cf5045d6f25",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        768,
+        448
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "# 1. Daily Trigger and Stock Ticker Retrieval\n- **Schedule Trigger:** This workflow is set to run automatically every day at 4:00 PM (Asia/Jerusalem time). This ensures that the script runs just before the markets open and you get a daily update on the sentiment of the stocks you are tracking.\n\n- **Read_tickers_from_Sheet:** This node connects to a Google Sheet named \"Stock Sentiment\" and reads the list of stock tickers from the \"stocks\" sheet. This is the source of the stocks that the workflow will analyze.\n\n- **loop_over_tickers:** This node takes the list of tickers from the Google Sheet and processes them one by one. This allows the workflow to perform the same set of actions for each stock ticker individually.",
+        "height": 400,
+        "width": 560,
+        "color": 4
+      },
+      "id": "328b27e0-d33c-43cb-b074-e0f080c0b106",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -400,
+        720
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "# 2. News Article Retrieval and Validation\n\n- **Get articles from EODHD:** For each ticker, this node makes an HTTP request to the EODHD API to fetch the 10 most recent news articles.\n\n- **If_ticker_not_valid:** This is a conditional node that checks if the EODHD API returned any articles and if the ticker from the google sheets is valid. If no articles are found (i.e., the ticker is likely invalid or has no recent news), the workflow proceeds to the error handling path.\n\n- **Write_in_google_sheets_invalid_ticker:** If the ticker is invalid, this node logs the ticker in the \"Sheet1\" of the \"Stock Sentiment\" Google Sheet with a \"sentimentScore\" of \"Invalid Ticker\". This helps in keeping track of which tickers are not yielding results.\n\n- **join_articles_into_1:** This node takes the multiple news articles for a valid ticker and combines them into a single text string. This is done to prepare the data for the AI model, which will analyze all the articles at once.",
+        "height": 380,
+        "width": 504,
+        "color": 5
+      },
+      "id": "7b71c587-ee92-402c-8274-44283c645a24",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        192,
+        656
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "# 3. Sentiment Analysis with AI\n\n- **AI Agent & Google Gemini Chat Model:** This is the core of the sentiment analysis. The \"AI Agent\" node is configured with a detailed prompt that instructs the \"Google Gemini Chat Model\" to act as a stock sentiment analyzer. The prompt specifies the input format (stock symbol, news title, and content), the analysis guidelines (sentiment score from -1 to 1 and rationale), and the desired JSON output format. The combined text of the news articles and the current stock ticker are passed to the model.l analyze all the articles at once.",
+        "height": 272,
+        "width": 484,
+        "color": 6
+      },
+      "id": "59afc5ce-3e19-4b13-aafa-02e1cac9e836",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1040,
+        800
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "# 4. Output Formatting and Error Handling\n\n- **format_output_as_json:** The output from the AI model is a raw string that includes a JSON object. This code node extracts the clean JSON from the string and prepares it for the next steps.\n\n- **if_format_succesful:** This conditional node checks if the previous step of formatting the AI's output into a clean JSON was successful. If there was an error, it sends the workflow back to the \"AI Agent\" to try again.",
+        "height": 268,
+        "width": 480,
+        "color": 2
+      },
+      "id": "d6e4091e-6a92-4120-9c83-0e8b7cec8fe5",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1344,
+        800
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "# 5. Storing the Results\n\n\n- **write_sentiment_to_sheets:** Once a valid sentiment analysis result is obtained and formatted, this node appends the data to \"Sheet1\" of the \"Stock Sentiment\" Google Sheet. It records the current date, the stock ticker, the sentiment score, and the rationale provided by the AI. After this step, the workflow loops back to process the next ticker from the initial list.\n\n\n\n\n\n\n",
+        "height": 360,
+        "width": 376,
+        "color": 3
+      },
+      "id": "ed6ca7c6-cc78-449e-8107-01b86b603708",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1792,
+        1072
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "deepseek-v4-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        1360
+      ],
+      "id": "af8d0d57-546f-49bc-8dec-176f2d57cfb2",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "AU0c3kZDPpKB3f1g",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {
+          "maxOutputTokens": 2048
+        }
+      },
+      "id": "3382adcc-26b5-4bcb-b359-97ce14060f4f",
+      "name": "Google Gemini Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        1200,
+        1376
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9ZojC8V5f0DwQVBR",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst executionId = $execution.id;\nconst results = staticData.sentimentDigests?.[executionId] ?? [];\nconst reportDate = new Date().toISOString().slice(0, 10);\n\nif (results.length === 0) {\n  return [{ json: { telegramMessage: `Date: ${reportDate}\\n\\nNo sentiment results were generated.` } }];\n}\n\nconst tickerSections = results.map(result => [\n  `Ticker: ${result.symbol ?? 'Unknown'}`,\n  `Sentiment Analysis: ${result.sentiment_score ?? 'N/A'}`,\n  `Rational: ${result.rationale ?? 'No rationale provided.'}`\n].join('\\n'));\n\nconst message = [`Date: ${reportDate}`, ...tickerSections].join('\\n\\n');\nconst maxMessageLength = 3900;\nconst telegramMessage = message.length > maxMessageLength\n  ? `${message.slice(0, maxMessageLength)}\\n\\n[Message truncated]`\n  : message;\n\ndelete staticData.sentimentDigests[executionId];\n\nreturn [{ json: { telegramMessage } }];"
+      },
+      "id": "96cf98c5-d3fb-4e4d-bdba-41b065c69ecd",
+      "name": "Aggregate sentiment digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "5553037479",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {}
+      },
+      "id": "a214dd36-98f3-4f6c-90fb-be00127a4acf",
+      "name": "Send sentiment digest to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        1280
+      ],
+      "webhookId": "400b04f7-1d2e-46ec-a558-c91f334a8321",
+      "credentials": {
+        "telegramApi": {
+          "id": "3h3KGyMCGf4lekU1",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "format_output_as_json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read_tickers_from_Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "loop_over_tickers": {
+      "main": [
+        [
+          {
+            "node": "Aggregate sentiment digest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get articles from EODHD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_ticker_not_valid": {
+      "main": [
+        [
+          {
+            "node": "Write_in_google_sheets_invalid_ticker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "join_articles_into_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "join_articles_into_1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_output_as_json": {
+      "main": [
+        [
+          {
+            "node": "write_sentiment_to_sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get articles from EODHD": {
+      "main": [
+        [
+          {
+            "node": "If_ticker_not_valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read_tickers_from_Sheet": {
+      "main": [
+        [
+          {
+            "node": "loop_over_tickers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "write_sentiment_to_sheets": {
+      "main": [
+        [
+          {
+            "node": "loop_over_tickers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate sentiment digest": {
+      "main": [
+        [
+          {
+            "node": "Send sentiment digest to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "versionId": "8a4427b9-cdf9-4279-913c-38db48d0a7e3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c271606105f8d1b5f051da35760b5f69fdcd102c56b9e8244bb103573dba6431"
+  },
+  "nodeGroups": [],
+  "id": "qiqSyJKiRYSnMBHO",
+  "tags": []
+}
